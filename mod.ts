@@ -1,14 +1,13 @@
-import {
+const {
   readDir,
   readlink,
   lstatSync,
   lstat,
   readDirSync,
   readlinkSync,
-  FileInfo,
   DenoError,
   ErrorKind
-} from "deno";
+} = Deno;
 
 /** The result of checking in one loop */
 export class Changes {
@@ -105,7 +104,7 @@ export function watch(targets: string | string[], options?: Options): Watcher {
     [Symbol.asyncIterator]() {
       return run(targets_, options);
     },
-    start: function(callback: (changes: Changes) => Promise<void> | void) {
+    start: function (callback: (changes: Changes) => Promise<void> | void) {
       const state = {
         abort: false,
         timeout: null
@@ -157,7 +156,7 @@ async function* run(
 /** This object detects changes for one step */
 export class Detector {
   public files = {};
-  constructor(public targets: string[], public options: DetectorOptions) {}
+  constructor(public targets: string[], public options: DetectorOptions) { }
   /** Call this function first to collect initial files.
    * Otherwise, all files existing at first will be marked as "ADDED" next time.
    */
@@ -195,7 +194,7 @@ export class Detector {
 function makeFilter({ test, ignore, ignoreDotFiles }: Options) {
   const testRegex = typeof test === "string" ? new RegExp(test) : test;
   const ignoreRegex = typeof ignore === "string" ? new RegExp(ignore) : ignore;
-  return function filter(f: FileInfo, path: string) {
+  return function filter(f: Deno.FileInfo, path: string) {
     if (ignoreDotFiles) {
       const splitted = path.split("/");
       const name = f.name || splitted[splitted.length - 1];
@@ -218,9 +217,9 @@ function makeFilter({ test, ignore, ignoreDotFiles }: Options) {
 async function walk(
   prev: any,
   curr: any,
-  targets: (string | FileInfo)[],
+  targets: (string | Deno.FileInfo)[],
   followSymlink: boolean,
-  filter: (f: FileInfo, path: string) => boolean,
+  filter: (f: Deno.FileInfo, path: string) => boolean,
   changes: Changes
 ): Promise<void> {
   const promises = [];
@@ -233,11 +232,11 @@ async function walk(
         path = f;
         info = await (followSymlink ? statTraverse : lstat)(f);
       } else if (f.isSymlink() && followSymlink) {
-        linkPath = f.path;
-        info = await statTraverse(f.path);
-        path = info.path;
+        linkPath = f.name;
+        info = await statTraverse(f.name);
+        path = info.name;
       } else {
-        path = f.path;
+        path = f.name;
         info = f;
       }
     } catch (e) {
@@ -274,9 +273,9 @@ async function walk(
 
 function collect(
   all: any,
-  targets: (string | FileInfo)[],
+  targets: (string | Deno.FileInfo)[],
   followSymlink: boolean,
-  filter: (f: FileInfo, path?: string) => boolean
+  filter: (f: Deno.FileInfo, path?: string) => boolean
 ): void {
   for (let f of targets) {
     let linkPath;
@@ -287,11 +286,11 @@ function collect(
         path = f;
         info = (followSymlink ? statTraverseSync : lstatSync)(f);
       } else if (f.isSymlink() && followSymlink) {
-        linkPath = f.path;
-        path = readlinkSync(f.path);
+        linkPath = f.name;
+        path = readlinkSync(f.name);
         info = statTraverseSync(path);
       } else {
-        path = f.path;
+        path = f.name;
         info = f;
       }
     } catch (e) {
@@ -316,23 +315,23 @@ function collect(
 }
 
 // Workaround for non-linux
-async function statTraverse(path: string): Promise<FileInfo> {
+async function statTraverse(path: string): Promise<Deno.FileInfo> {
   const info = await lstat(path);
   if (info.isSymlink()) {
     const targetPath = await readlink(path);
     return statTraverse(targetPath);
   } else {
-    info.path = info.path || path;
+    info.name = info.name || path;
     return info;
   }
 }
-function statTraverseSync(path: string): FileInfo {
+function statTraverseSync(path: string): Deno.FileInfo {
   const info = lstatSync(path);
   if (info.isSymlink()) {
     const targetPath = readlinkSync(path);
     return statTraverseSync(targetPath);
   } else {
-    info.path = info.path || path;
+    info.name = info.name || path;
     return info;
   }
 }
