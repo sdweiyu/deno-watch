@@ -253,7 +253,10 @@ async function walk(
       continue;
     }
     if (info.isDirectory()) {
-      const files = await readDir(path);
+      let files = (await readDir(path)).map((file) => {
+        file.name = `${path}/${file.name}`;
+        return file;
+      });
       promises.push(walk(prev, curr, files, followSymlink, filter, changes));
     } else if (info.isFile()) {
       if (curr[path]) {
@@ -307,7 +310,11 @@ function collect(
       continue;
     }
     if (info.isDirectory()) {
-      collect(all, readDirSync(path), followSymlink, filter);
+      let files = readDirSync(path).map((file) => {
+        file.name = `${path}/${file.name}`;
+        return file;
+      });
+      collect(all, files, followSymlink, filter);
     } else if (info.isFile()) {
       all[path] = info.modified || info.created;
     }
